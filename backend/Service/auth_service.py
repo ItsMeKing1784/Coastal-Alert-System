@@ -55,12 +55,24 @@ class AuthService:
             self.db_session.execute(insert_sql, params)
             self.db_session.commit()
             return True, user_id
-        except IntegrityError:
+        except IntegrityError as e:
             self.db_session.rollback()
-            return False, 'Email already exists.'
+            # Identify the type of integrity error
+            msg = str(e.orig) if hasattr(e, 'orig') else str(e)
+            if 'unique constraint' in msg or 'duplicate key' in msg:
+                if 'email' in msg:
+                    return False, 'Email already exists.'
+                elif 'phone_number' in msg:
+                    return False, 'Phone number already exists.'
+                else:
+                    return False, 'Duplicate entry.'
+            elif 'foreign key' in msg:
+                return False, 'Invalid foreign key reference.'
+            else:
+                return False, f'Integrity error: {msg}'
 
     def login_user(self, email, password):
         user = self.db_session.query(User).filter_by(email=email).first()
-        if user and check_password_hash(user.password, password):
+        if user and check_password_hash(user.password_hash, password):
             return True, user
         return False, 'Invalid credentials.'
