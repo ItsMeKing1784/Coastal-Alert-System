@@ -2,4 +2,6 @@ PyYAML
 sqlalchemy
 flask_sqlalchemy
 geoalchemy2
+CORS
 psycopg2
+shapely

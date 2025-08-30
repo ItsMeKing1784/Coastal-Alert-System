@@ -161,7 +161,7 @@ const Register = () => {
       // Accept success if res.message, res.success, or res[0] === true
       if (res && (res.message || res.success || res[0] === true)) {
         message.success(res.message || res.success || 'Registration successful!');
-        navigate(`/dashboard/${role.toLowerCase()}`);
+        navigate('/login');
       } else if (res && (res.error || res[1])) {
         message.error(res.error || res[1]);
       } else {

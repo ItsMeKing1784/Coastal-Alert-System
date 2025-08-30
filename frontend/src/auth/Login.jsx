@@ -94,6 +94,9 @@ const Login = () => {
             <StyledButton type="primary" htmlType="submit" block>Login</StyledButton>
           </StyledFormItem>
         </Form>
+        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+          <Button type="link" onClick={() => navigate('/register')}>New user? Register here</Button>
+        </div>
       </StyledCard>
     </LoginWrapper>
   );
