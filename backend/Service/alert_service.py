@@ -12,7 +12,7 @@ class AlertService:
         try:
             email = data.get('email')
             user = self.db_session.query(User).filter_by(email=email).first()
-            if not user or user.role != 'Government':
+            if not user or user.role != 'Govt':
                 return False, 'Only Government Agent can create alerts.'
             alert_id = str(uuid.uuid4())
             insert_sql = sqlalchemy.text('''
