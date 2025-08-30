@@ -17,7 +17,7 @@ class AuthService:
         role = user_data.get("role")
         email = user_data.get("email", "")
 
-        GOV_DOMAINS = ["gov.in", "nic.in"]
+        GOV_DOMAINS = ["gov.in","gmail.com", "nic.in"]
         CIVIL_DEFENCE_DOMAINS = ["civildefence.gov.in", "cdteam.in"]
         DISASTER_MGMT_DOMAINS = ["ndma.gov.in"]
         NGO_DOMAINS = ["redcross.org", "blueocean.org", "savethecoast.org"]  # example
@@ -39,8 +39,8 @@ class AuthService:
             # Disallow Govt, CivilDefence, NGO, Disaster domains
             forbidden_domains = GOV_DOMAINS + CIVIL_DEFENCE_DOMAINS + NGO_DOMAINS + DISASTER_MGMT_DOMAINS
             
-            if any(email.endswith("@" + d) for d in forbidden_domains):
-                return False, "Fisherfolk cannot use restricted domains"
+            # if any(email.endswith("@" + d) for d in forbidden_domains):
+            #     return False, "Fisherfolk cannot use restricted domains"
 
             # Optionally enforce only common free domains
             allowed_common_domains = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com"]

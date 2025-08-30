@@ -15,15 +15,23 @@ with open('config.yml', 'r') as f:
     config = yaml.safe_load(f)
 
     
-# Configure your database URI here
 DATABASE_URI = config['database']['uri']
 engine = create_engine(DATABASE_URI)
 Session = sessionmaker(bind=engine)
 Base.metadata.create_all(engine)
 
+from Service.email_service import EmailService
+
+email_service = EmailService(
+    smtp_server=config['smtp']['server'],
+    smtp_port=config['smtp']['port'],
+    smtp_user=config['smtp']['user'],
+    smtp_password=config['smtp']['password']
+)
+
 auth_bp = Blueprint('auth', __name__)
 auth_service = AuthService(db_session)
-alert_service = AlertService(db_session)
+alert_service = AlertService(db_session, email_service)
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
