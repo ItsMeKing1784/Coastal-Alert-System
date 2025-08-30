@@ -15,6 +15,11 @@ with open('config.yml', 'r') as f:
 app = Flask(__name__)
 app.config['SECRET_KEY'] = config['secret_key']
 app.config['DEBUG'] = config.get('debug', True)
+# Ensure database URI is set
+if 'database' in config and 'uri' in config['database']:
+    app.config['SQLALCHEMY_DATABASE_URI'] = config['database']['uri']
+else:
+    raise RuntimeError("Missing 'database: uri' in config.yml")
 CORS(app)
 db = SQLAlchemy(app)
 app.register_blueprint(auth_bp)
