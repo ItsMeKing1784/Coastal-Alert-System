@@ -1,9 +1,9 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { Form, Input, Button, Card, Typography, Select } from 'antd';
+import { Form, Input, Button, Card, Typography, Select, message } from 'antd';
 import 'antd/dist/reset.css';
+import { registerUser } from './api';
 
 const roles = [
   { label: 'Disaster Management Department', value: 'Disaster' },
@@ -11,6 +11,18 @@ const roles = [
   { label: 'NGO', value: 'NGO' },
   { label: 'Fisher folk', value: 'Fisherfolk' },
   { label: 'Civil Defence Team', value: 'CivilDefence' }
+];
+
+const alertMethodsOptions = [
+  { label: 'SMS', value: 'SMS' },
+  { label: 'Email', value: 'Email' },
+  { label: 'Push Notification', value: 'Push' },
+];
+
+const alertLevelOptions = [
+  { label: 'Severe', value: 'Severe' },
+  { label: 'Moderate', value: 'Moderate' },
+  { label: 'Low', value: 'Low' },
 ];
 
 const backgroundUrl = 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1500&q=80';
@@ -29,7 +41,7 @@ const RegisterWrapper = styled.div`
 const StyledCard = styled(Card)`
   && {
     min-width: 350px;
-    max-width: 400px;
+    max-width: 500px;
     width: 90%;
     margin: 0 auto;
     box-shadow: 0 8px 32px rgba(0,0,0,0.18);
@@ -69,24 +81,103 @@ const { Title } = Typography;
 
 const Register = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [coords, setCoords] = useState({ latitude: null, longitude: null });
 
-  const onFinish = (values) => {
-    const { name, email, password, confirmPassword, role } = values;
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCoords({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        () => {
+          setCoords({ latitude: null, longitude: null });
+        }
+      );
+    }
+  }, []);
+
+  const onFinish = async (values) => {
+    setLoading(true);
+    const {
+      name,
+      email,
+      password,
+      confirmPassword,
+      role,
+      phone_number,
+      organization,
+      preferred_alert_radius,
+      zone_id,
+      alert_methods,
+      alert_level_threshold
+    } = values;
+
     if (password !== confirmPassword) {
-      // Should not happen due to form validation, but just in case
+      message.error('Passwords do not match!');
+      setLoading(false);
       return;
     }
-    const users = JSON.parse(localStorage.getItem('users')) || [];
-    users.push({ name, email, password, role });
-    localStorage.setItem('users', JSON.stringify(users));
-    localStorage.setItem('currentUser', JSON.stringify({ email, role }));
-    navigate(`/dashboard/${role.toLowerCase()}`);
+
+    // ✅ Prepare home_location in GeoJSON format
+    let home_location = null;
+    if (coords.latitude && coords.longitude) {
+      home_location = {
+        type: 'Point',
+        coordinates: [parseFloat(coords.longitude), parseFloat(coords.latitude)]
+      };
+    }
+
+    // ✅ Build user data payload expected by backend
+    const user_data = {
+      full_name: name,
+      email,
+      password_hash: password,   // backend expects `password_hash`
+      role,
+      phone_number,
+      organization,
+      home_location,
+      preferred_alert_radius: preferred_alert_radius ? Number(preferred_alert_radius) : 10,
+      zone_id,
+      alert_methods: alert_methods || ['SMS'],
+      alert_level_threshold: alert_level_threshold || 'Severe',
+    };
+
+    try {
+      const res = await registerUser(user_data);
+      // ✅ Adjusted for backend response (message/error instead of [true, ...])
+      if (res.message) {
+        message.success(res.message);
+        navigate(`/dashboard/${role.toLowerCase()}`);
+      } else if (res.error) {
+        message.error(res.error);
+      } else {
+        message.error('Unexpected server response.');
+      }
+    } catch (err) {
+      message.error('Server error. Please try again later.');
+    }
+    setLoading(false);
   };
 
   return (
     <RegisterWrapper>
       <StyledCard>
-        <Title level={2} style={{ textAlign: 'center', marginBottom: '1rem', fontWeight: 700, letterSpacing: '1px', color: '#222' }}>Register</Title>
+        <Title
+          level={2}
+          style={{
+            textAlign: 'center',
+            marginBottom: '1rem',
+            fontWeight: 700,
+            letterSpacing: '1px',
+            color: '#222'
+          }}
+        >
+          Register
+        </Title>
         <Form
           layout="vertical"
           onFinish={onFinish}
@@ -97,6 +188,24 @@ const Register = () => {
           </StyledFormItem>
           <StyledFormItem label="Email" name="email" rules={[{ required: true, message: 'Please input your email!' }]}> 
             <Input type="email" placeholder="Email" size="large" />
+          </StyledFormItem>
+          <StyledFormItem label="Phone Number" name="phone_number" rules={[{ required: true, message: 'Please input your phone number!' }]}> 
+            <Input placeholder="Phone Number" size="large" />
+          </StyledFormItem>
+          <StyledFormItem label="Organization" name="organization"> 
+            <Input placeholder="Organization (optional)" size="large" />
+          </StyledFormItem>
+          <StyledFormItem label="Preferred Alert Radius (km)" name="preferred_alert_radius" rules={[{ required: true, message: 'Please input preferred alert radius!' }]}> 
+            <Input placeholder="Alert Radius" size="large" type="number" min={1} />
+          </StyledFormItem>
+          <StyledFormItem label="Zone ID" name="zone_id"> 
+            <Input placeholder="Zone ID (optional)" size="large" />
+          </StyledFormItem>
+          <StyledFormItem label="Alert Methods" name="alert_methods" rules={[{ required: true, message: 'Please select at least one alert method!' }]}> 
+            <Select mode="multiple" options={alertMethodsOptions} size="large" placeholder="Select alert methods" />
+          </StyledFormItem>
+          <StyledFormItem label="Alert Level Threshold" name="alert_level_threshold" rules={[{ required: true, message: 'Please select alert level threshold!' }]}> 
+            <Select options={alertLevelOptions} size="large" placeholder="Select alert level" />
           </StyledFormItem>
           <StyledFormItem label="Password" name="password" rules={[{ required: true, message: 'Please input your password!' }]}> 
             <Input.Password placeholder="Password" size="large" />
@@ -123,7 +232,7 @@ const Register = () => {
             <Select options={roles} size="large" placeholder="Select role" />
           </StyledFormItem>
           <StyledFormItem>
-            <StyledButton type="primary" htmlType="submit" block>Register</StyledButton>
+            <StyledButton type="primary" htmlType="submit" block loading={loading}>Register</StyledButton>
           </StyledFormItem>
         </Form>
       </StyledCard>
