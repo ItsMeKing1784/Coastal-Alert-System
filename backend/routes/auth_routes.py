@@ -39,6 +39,6 @@ def login():
     data = request.json
     success, result = auth_service.login_user(data.get('email'), data.get('password'))
     if success:
-        return jsonify({'message': 'Login successful', 'user_id': result.user_id}), 200
+        return jsonify({'message': 'Login successful', 'user_id': result.user_id, 'role': result.role}), 200
     else:
         return jsonify({'error': result}), 401
