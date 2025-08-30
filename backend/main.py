@@ -1,33 +1,36 @@
 import yaml
 from flask import Flask, jsonify
+from flask_cors import CORS
 from sqlalchemy import text
 from flask_sqlalchemy import SQLAlchemy
 from routes.auth_routes import auth_bp
 from routes.alert_routes import alert_bp
+from routes.coastal_zones_routes import zone_routes
+from db import SessionLocal
 
-
-# Load config from YAML
+# Load config
 with open('config.yml', 'r') as f:
     config = yaml.safe_load(f)
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = config['database']['uri']
 app.config['SECRET_KEY'] = config['secret_key']
 app.config['DEBUG'] = config.get('debug', True)
+CORS(app)
 db = SQLAlchemy(app)
 app.register_blueprint(auth_bp)
 app.register_blueprint(alert_bp)
+app.register_blueprint(zone_routes)
 
-@app.route('/')
+@app.route("/")
 def home():
-    return "Connected to PostgreSQL!"
+    return "Coastal Alert System API is running!"
 
-# Route to fetch all users from the users table
-@app.route('/users')
-def get_users():
-    result = db.session.execute(text('SELECT * FROM public.coastal_zones'))
-    users = [dict(row._mapping) for row in result]
-    return jsonify(users)
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    """
+    Remove/close the SQLAlchemy session after each request
+    """
+    SessionLocal.remove()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=app.config['DEBUG'], port=8000)

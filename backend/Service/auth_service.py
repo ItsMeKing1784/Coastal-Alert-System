@@ -4,15 +4,55 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 import datetime
 import uuid
+import sqlalchemy, uuid, datetime
+from werkzeug.security import generate_password_hash
+from sqlalchemy.exc import IntegrityError
 
 class AuthService:
     def __init__(self, db_session: Session):
         self.db_session = db_session
 
     def register_user(self, user_data):
-        import sqlalchemy
+        # ---- Role & Email Verification ----
+        role = user_data.get("role")
+        email = user_data.get("email", "")
+
+        GOV_DOMAINS = ["gov.in", "nic.in"]
+        CIVIL_DEFENCE_DOMAINS = ["civildefence.gov.in", "cdteam.in"]
+        DISASTER_MGMT_DOMAINS = ["ndma.gov.in"]
+        NGO_DOMAINS = ["redcross.org", "blueocean.org", "savethecoast.org"]  # example
+
+        # Role-based domain verification
+        if role == "Govt":
+            if not any(email.endswith("@" + d) for d in GOV_DOMAINS):
+                return False, "Invalid Government email domain"
+        elif role == "CivilDefence":
+            if not any(email.endswith("@" + d) for d in CIVIL_DEFENCE_DOMAINS):
+                return False, "Invalid Civil Defence email domain"
+        elif role == "NGO":
+            if not any(email.endswith("@" + d) for d in NGO_DOMAINS):
+                return False, "Invalid NGO email domain"
+        elif role == "Disaster":
+            if not any(email.endswith("@" + d) for d in DISASTER_MGMT_DOMAINS):
+                return False, "Invalid Disaster Management email domain"
+        elif role == "Fisherfolk":
+            # Disallow Govt, CivilDefence, NGO, Disaster domains
+            forbidden_domains = GOV_DOMAINS + CIVIL_DEFENCE_DOMAINS + NGO_DOMAINS + DISASTER_MGMT_DOMAINS
+            
+            if any(email.endswith("@" + d) for d in forbidden_domains):
+                return False, "Fisherfolk cannot use restricted domains"
+
+            # Optionally enforce only common free domains
+            allowed_common_domains = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com"]
+            if not any(email.endswith("@" + d) for d in allowed_common_domains):
+                return False, "Fisherfolk must use a valid personal email (e.g. gmail.com)"
+        else:
+            return False, "Invalid role"
+
+        # ---- Previous registration logic ----
         user_id = str(uuid.uuid4())
         password_hash = generate_password_hash(user_data['password_hash'])
+
         # Convert home_location dict to EWKT string
         hl = user_data.get('home_location')
         if isinstance(hl, dict) and hl.get('type') == 'Point':
@@ -20,12 +60,14 @@ class AuthService:
             home_location = f'SRID=4326;POINT({lon} {lat})'
         else:
             home_location = hl  # Assume already EWKT or None
+
         # Convert alert_methods list to PostgreSQL array string
         am = user_data.get('alert_methods', ["SMS"])
         if isinstance(am, list):
             alert_methods = '{' + ','.join(am) + '}'
         else:
             alert_methods = am
+
         insert_sql = sqlalchemy.text('''
             INSERT INTO public.users (
                 user_id, full_name, email, phone_number, password_hash, two_factor_enabled, role, organization, home_location, preferred_alert_radius, zone_id, alert_methods, preferred_language, alert_level_threshold, last_login, registration_date
@@ -70,6 +112,8 @@ class AuthService:
                 return False, 'Invalid foreign key reference.'
             else:
                 return False, f'Integrity error: {msg}'
+
+
 
     def login_user(self, email, password):
         user = self.db_session.query(User).filter_by(email=email).first()

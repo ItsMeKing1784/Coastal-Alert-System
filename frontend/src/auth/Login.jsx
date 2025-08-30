@@ -1,10 +1,10 @@
 
-import React, { useContext } from 'react';
-import { AuthContext } from './AuthContext';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { Form, Input, Button, Card, Typography } from 'antd';
+import { Form, Input, Button, Card, Typography, message } from 'antd';
 import 'antd/dist/reset.css';
+import { loginUser } from './api';
 
 const backgroundUrl = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1500&q=80';
 
@@ -61,19 +61,21 @@ const { Title } = Typography;
 
 
 const Login = () => {
-  const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const onFinish = (values) => {
+  const onFinish = async (values) => {
     const { email, password } = values;
-    const success = login(email, password);
-    if (success) {
-      const user = JSON.parse(localStorage.getItem('currentUser'));
-      if (user && user.role) {
-        navigate(`/dashboard/${user.role.toLowerCase()}`);
+    try {
+      const res = await loginUser({ email, password });
+      console.log('Login response:', res);
+      if (res.message && res.user_id) {
+        message.success(res.message);
+        navigate(`/dashboard/${res.role.toLowerCase()}`);
+      } else {
+        message.error(res.error || 'Invalid credentials');
       }
-    } else {
-      window.alert('Invalid credentials');
+    } catch (err) {
+      message.error('Server error. Please try again later.');
     }
   };
 
