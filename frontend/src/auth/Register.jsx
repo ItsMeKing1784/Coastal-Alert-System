@@ -122,7 +122,7 @@ const Register = () => {
       return;
     }
 
-    // ✅ Prepare home_location in GeoJSON format
+    //  Prepare home_location in GeoJSON format
     let home_location = null;
     if (coords.latitude && coords.longitude) {
       home_location = {
@@ -148,16 +148,27 @@ const Register = () => {
 
     try {
       const res = await registerUser(user_data);
-      // ✅ Adjusted for backend response (message/error instead of [true, ...])
-      if (res.message) {
-        message.success(res.message);
+      console.log('Raw backend response:', res);
+      // If the response is not an object, try to parse it
+      if (typeof res === 'string') {
+        try {
+          const parsed = JSON.parse(res);
+          console.log('Parsed backend response:', parsed);
+        } catch (e) {
+          console.log('Response is not JSON:', res);
+        }
+      }
+      // Accept success if res.message, res.success, or res[0] === true
+      if (res && (res.message || res.success || res[0] === true)) {
+        message.success(res.message || res.success || 'Registration successful!');
         navigate(`/dashboard/${role.toLowerCase()}`);
-      } else if (res.error) {
-        message.error(res.error);
+      } else if (res && (res.error || res[1])) {
+        message.error(res.error || res[1]);
       } else {
         message.error('Unexpected server response.');
       }
     } catch (err) {
+      console.error('Registration error:', err);
       message.error('Server error. Please try again later.');
     }
     setLoading(false);

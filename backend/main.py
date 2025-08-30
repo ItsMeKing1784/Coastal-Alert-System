@@ -1,5 +1,8 @@
 import yaml
-from flask import Flask
+from flask import Flask, jsonify
+from flask_cors import CORS
+from sqlalchemy import text
+from flask_sqlalchemy import SQLAlchemy
 from routes.auth_routes import auth_bp
 from routes.alert_routes import alert_bp
 from routes.coastal_zones_routes import zone_routes
@@ -12,8 +15,8 @@ with open('config.yml', 'r') as f:
 app = Flask(__name__)
 app.config['SECRET_KEY'] = config['secret_key']
 app.config['DEBUG'] = config.get('debug', True)
-
-# Register blueprints
+CORS(app)
+db = SQLAlchemy(app)
 app.register_blueprint(auth_bp)
 app.register_blueprint(alert_bp)
 app.register_blueprint(zone_routes)
